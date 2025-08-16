@@ -1,0 +1,8 @@
+node_modules
+.env
+.env.local
+REQUIREMENTS_IMPLEMENTATION.md
+readme.md
+prisma/dev.db
+prisma/migrations/20250815155928_init/migration.sql
+prisma/migrations/20250816151416_init/migration.sql

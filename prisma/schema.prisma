@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int             @id @default(autoincrement())
+  username        String          @unique
+  fullName        String? // Optional full name for user
+  password        String? // not required for this test, kept for extensibility
+  wins            Int             @default(0)
+  createdAt       DateTime        @default(now())
+  players         SessionPlayer[]
+  sessionsStarted Session[]       @relation("SessionStarter")
+  SessionQueue    SessionQueue[]
+}
+
+model Session {
+  id           Int             @id @default(autoincrement())
+  status       String          @default("PENDING") // PENDING | ACTIVE | ENDED
+  startedAt    DateTime?
+  endsAt       DateTime?
+  winnerNumber Int?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  startedById  Int?
+  startedBy    User?           @relation("SessionStarter", fields: [startedById], references: [id])
+  players      SessionPlayer[]
+  queue        SessionQueue[]
+}
+
+model SessionPlayer {
+  id              Int      @id @default(autoincrement())
+  sessionId       Int
+  userId          Int
+  pick            Int
+  isWinner        Boolean  @default(false)
+  joinedAt        DateTime @default(now())
+  leftBeforeStart Boolean  @default(false)
+
+  session Session @relation(fields: [sessionId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+}
+
+model SessionQueue {
+  id         Int      @id @default(autoincrement())
+  sessionId  Int
+  userId     Int
+  enqueuedAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([sessionId, userId])
+}

@@ -6,3 +6,5 @@ readme.md
 prisma/dev.db
 prisma/migrations/20250815155928_init/migration.sql
 prisma/migrations/20250816151416_init/migration.sql
+prisma/migrations/20250817150654_add_user_activity_tracking/migration.sql
+prisma/dev.db-journal

@@ -14,6 +14,8 @@
     "prisma:studio": "prisma studio",
     "seed": "ts-node prisma/seed.ts",
     "deploy:setup": "npx prisma migrate deploy && npx prisma generate",
+    "db:setup": "npx prisma migrate deploy || (npx prisma migrate dev --name init --create-only && npx prisma migrate deploy)",
+    "db:reset": "npx prisma migrate reset --force",
     "postbuild": "echo 'Build completed. Contents of dist folder:' && ls -la dist/ || echo 'dist folder not found'"
   },
   "dependencies": {

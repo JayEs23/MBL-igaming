@@ -4,12 +4,11 @@ services:
     runtime: node
     plan: free
     buildCommand: |
-      cd backend
       npm install
       npx prisma generate
       npm run build
+      ls -la dist/
     startCommand: |
-      cd backend
       npx prisma migrate deploy
       npm start
     envVars:

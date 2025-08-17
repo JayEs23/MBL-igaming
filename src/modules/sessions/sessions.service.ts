@@ -12,10 +12,6 @@ export class SessionsService {
 
   private get duration() { 
     const duration = Number(process.env.SESSION_DURATION_SECONDS || SESSION_CONSTANTS.DEFAULT_DURATION_SECONDS);
-    console.log('=== Session Duration Configuration ===');
-    console.log('Environment SESSION_DURATION_SECONDS:', process.env.SESSION_DURATION_SECONDS);
-    console.log('Default duration:', SESSION_CONSTANTS.DEFAULT_DURATION_SECONDS);
-    console.log('Final duration used:', duration, 'seconds');
     return duration;
   }
   private get cap() { return Number(process.env.SESSION_MAX_PLAYERS || SESSION_CONSTANTS.DEFAULT_MAX_PLAYERS); }
@@ -24,15 +20,10 @@ export class SessionsService {
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleExpiredSessions() {
     try {
-      console.log('=== Scheduled Task: Checking for expired sessions ===');
-      console.log('Current time:', new Date().toISOString());
-      
       // Check if there are any active users
       const activeUsers = await this.getActiveUserCount();
-      console.log('Active users count:', activeUsers);
       
       if (activeUsers === 0) {
-        console.log('No active users, stopping all sessions to save resources');
         await this.stopAllSessions();
         return;
       }
@@ -47,11 +38,7 @@ export class SessionsService {
         include: { players: true }
       });
 
-      console.log('Found expired sessions:', expiredSessions.length);
-      console.log('Expired sessions:', expiredSessions.map(s => ({ id: s.id, endsAt: s.endsAt, players: s.players.length })));
-
       for (const session of expiredSessions) {
-        console.log(`Ending expired session ${session.id}`);
         await this.endSession(session.id);
       }
 
@@ -62,18 +49,12 @@ export class SessionsService {
           where: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING }
         });
 
-        console.log('Current pending session:', pendingSession ? pendingSession.id : 'None');
-
         if (!pendingSession) {
-          console.log('Creating new pending session');
-          const newSession = await this.prisma.session.create({ 
+          await this.prisma.session.create({ 
             data: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING } 
           });
-          console.log('Created new pending session:', newSession.id);
         }
       }
-      
-      console.log('=== Scheduled Task Complete ===');
     } catch (error) {
       console.error('Error handling expired sessions:', error);
     }
@@ -83,8 +64,6 @@ export class SessionsService {
   @Cron(CronExpression.EVERY_MINUTE)
   async cleanupInactiveUsers() {
     try {
-      console.log('=== Cleaning up inactive users ===');
-      
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
       // Find users who haven't been active in 5 minutes
@@ -95,12 +74,8 @@ export class SessionsService {
       });
       
       if (inactiveUsers.length > 0) {
-        console.log(`Found ${inactiveUsers.length} inactive users:`, inactiveUsers.map(u => u.username));
-        
         // Remove inactive users from all sessions and queues
         for (const user of inactiveUsers) {
-          console.log(`Cleaning up inactive user: ${user.username} (ID: ${user.id})`);
-          
           // Remove from session players
           await this.prisma.sessionPlayer.deleteMany({
             where: { userId: user.id }
@@ -110,14 +85,8 @@ export class SessionsService {
           await this.prisma.sessionQueue.deleteMany({
             where: { userId: user.id }
           });
-          
-          console.log(`Cleaned up user ${user.username} from all sessions and queues`);
         }
-      } else {
-        console.log('No inactive users found');
       }
-      
-      console.log('=== Inactive user cleanup complete ===');
     } catch (error) {
       console.error('Error cleaning up inactive users:', error);
     }
@@ -156,15 +125,12 @@ export class SessionsService {
   // Stop all active and pending sessions when no users are online
   private async stopAllSessions(): Promise<void> {
     try {
-      console.log('Stopping all sessions due to no active users');
-      
       // End all active sessions
       const activeSessions = await this.prisma.session.findMany({
         where: { status: SESSION_CONSTANTS.SESSION_STATUSES.ACTIVE }
       });
       
       for (const session of activeSessions) {
-        console.log(`Ending active session ${session.id} due to no users`);
         await this.endSession(session.id);
       }
       
@@ -174,19 +140,14 @@ export class SessionsService {
       });
       
       for (const session of pendingSessions) {
-        console.log(`Deleting pending session ${session.id} due to no users`);
         await this.prisma.session.delete({ where: { id: session.id } });
       }
-      
-      console.log('All sessions stopped successfully');
     } catch (error) {
       console.error('Error stopping all sessions:', error);
     }
   }
 
   async getCurrent(userId?: number) {
-    console.log('=== getCurrent called ===');
-    
     // Update user activity if userId is provided
     if (userId) {
       await this.updateUserActivity(userId);
@@ -200,12 +161,7 @@ export class SessionsService {
       include: { players: { include: { user: true } }, queue: { include: { user: true } } },
     });
     
-    console.log('Active session found:', active ? active.id : 'None');
     if (active) {
-      console.log('Active session status:', active.status);
-      console.log('Active session players:', active.players.length);
-      console.log('Active session endsAt:', active.endsAt);
-      console.log('Player IDs:', active.players.map(p => p.userId));
       return { session: active };
     }
 
@@ -215,41 +171,27 @@ export class SessionsService {
       orderBy: { id: 'desc' },
     });
     
-    console.log('Pending session found:', pending ? pending.id : 'None');
     if (pending) {
-      console.log('Pending session players:', pending.players.length);
-      console.log('Player IDs:', pending.players.map(p => p.userId));
-      
       // Auto-start pending sessions after 30 seconds of creation
       const sessionAge = Date.now() - new Date(pending.createdAt).getTime();
       const autoStartDelay = 30000; // 30 seconds
       
       if (sessionAge > autoStartDelay) {
-        console.log('Auto-starting pending session:', pending.id);
-        console.log('Session age:', sessionAge, 'ms, Auto-start delay:', autoStartDelay, 'ms');
-        
         try {
           // Auto-start with a system user (ID 0 or null)
           const autoStartedSession = await this.start({ id: 0 });
-          console.log('Auto-started session:', autoStartedSession.id);
           return { session: autoStartedSession };
         } catch (error) {
           console.error('Error auto-starting session:', error);
           // Continue with pending session if auto-start fails
         }
-      } else {
-        const timeRemaining = Math.ceil((autoStartDelay - sessionAge) / 1000);
-        console.log(`Session too young to auto-start. Age: ${sessionAge}ms, Time remaining: ${timeRemaining}s`);
       }
     }
     
-    console.log('=== getCurrent returning ===');
     return { session: pending };
   }
 
   async start(starter: { id: number }) {
-    console.log(`=== Starting session with starter ID: ${starter.id} ===`);
-    
     // Update user activity for the starter
     if (starter.id > 0) { // Don't update for system user (ID 0)
       await this.updateUserActivity(starter.id);
@@ -261,17 +203,10 @@ export class SessionsService {
     let pending = await this.prisma.session.findFirst({ where: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING }, orderBy: { id: 'desc' } });
     if (!pending) {
       pending = await this.prisma.session.create({ data: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING, startedById: starter.id } });
-      console.log(`Created new pending session: ${pending.id}`);
     }
 
     const startedAt = new Date();
     const endsAt = new Date(startedAt.getTime() + this.duration * 1000);
-    
-    console.log('=== Starting Session ===');
-    console.log('Session duration:', this.duration, 'seconds');
-    console.log('Started at:', startedAt.toISOString());
-    console.log('Ends at:', endsAt.toISOString());
-    console.log('Total duration:', (endsAt.getTime() - startedAt.getTime()) / 1000, 'seconds');
 
     const session = await this.prisma.session.update({
       where: { id: pending.id },
@@ -283,8 +218,6 @@ export class SessionsService {
       include: { players: { include: { user: true } }, queue: { include: { user: true } } },
     });
 
-    console.log(`Session ${session.id} started successfully with ${session.players.length} players`);
-
     // Auto-enroll first in queue if session not full
     if (session.players.length < this.cap && session.queue.length > 0) {
       const firstInQueue = session.queue[0];
@@ -293,7 +226,6 @@ export class SessionsService {
         data: { sessionId: session.id, userId: firstInQueue.userId, pick: randomPick },
       });
       await this.prisma.sessionQueue.delete({ where: { id: firstInQueue.id } });
-      console.log(`Auto-enrolled user ${firstInQueue.userId} from queue with pick ${randomPick}`);
     }
 
     return session;
@@ -301,7 +233,6 @@ export class SessionsService {
 
   async join(userId: number, pick: number) {
     const validatedPick = ValidationUtils.validatePickNumber(pick);
-    console.log(`=== User ${userId} joining session with pick ${validatedPick} ===`);
     
     // Update user activity
     await this.updateUserActivity(userId);
@@ -317,7 +248,6 @@ export class SessionsService {
 
     if (!SessionUtils.isSessionFull(session!.players, this.cap)) {
       // Join directly
-      console.log(`Session not full (${session!.players.length}/${this.cap}), joining directly`);
       await this.prisma.sessionPlayer.create({
         data: { 
           sessionId: session!.id, 
@@ -326,25 +256,19 @@ export class SessionsService {
           joinedAt: new Date()
         },
       });
-      console.log(`User ${userId} joined session ${session!.id} directly`);
     } else {
       // Join queue
-      console.log(`Session full (${session!.players.length}/${this.cap}), joining queue`);
       await this.prisma.sessionQueue.create({
         data: { sessionId: session!.id, userId },
       });
-      console.log(`User ${userId} joined queue for session ${session!.id}`);
     }
 
     // Return fresh session data to ensure real-time updates
     const updatedSession = await this.getCurrent();
-    console.log(`=== Join complete. Updated session has ${updatedSession.session?.players?.length || 0} players ===`);
     return updatedSession;
   }
 
   async leave(userId: number) {
-    console.log(`=== User ${userId} leaving session ===`);
-    
     // Update user activity
     await this.updateUserActivity(userId);
     
@@ -354,7 +278,6 @@ export class SessionsService {
     });
 
     if (!session) {
-      console.log('No active/pending session found');
       return { session: null };
     }
 
@@ -362,7 +285,6 @@ export class SessionsService {
 
     // Check if user was in the session
     const wasInSession = session.players.some(p => p.userId === userId);
-    console.log(`User ${userId} was in session: ${wasInSession}`);
     
     // Remove from players
     await this.prisma.sessionPlayer.deleteMany({
@@ -377,14 +299,11 @@ export class SessionsService {
     // If session was pending and no players left, delete it
     if (session.status === SESSION_CONSTANTS.SESSION_STATUSES.PENDING && session.players.length === 0) {
       await this.prisma.session.delete({ where: { id: session.id } });
-      console.log(`Deleted empty pending session ${session.id}`);
       return { session: null };
     }
 
     // Queue promotion: If someone left an active session and there are people in queue, promote the first one
     if (wasInSession && session.status === SESSION_CONSTANTS.SESSION_STATUSES.ACTIVE && session.queue.length > 0) {
-      console.log('User left active session, promoting first person from queue');
-      
       const firstInQueue = session.queue[0];
       const randomPick = ValidationUtils.generateRandomPick();
       
@@ -400,14 +319,10 @@ export class SessionsService {
       
       // Remove from queue
       await this.prisma.sessionQueue.delete({ where: { id: firstInQueue.id } });
-      
-      console.log(`Promoted user ${firstInQueue.userId} from queue to session with pick ${randomPick}`);
     }
     
     // Queue promotion: If someone left a pending session and there are people in queue, promote the first one
     if (wasInSession && session.status === SESSION_CONSTANTS.SESSION_STATUSES.PENDING && session.queue.length > 0) {
-      console.log('User left pending session, promoting first person from queue');
-      
       const firstInQueue = session.queue[0];
       
       // For pending sessions, no pick is needed yet, but we need to provide a default value
@@ -425,13 +340,10 @@ export class SessionsService {
       
       // Remove from queue
       await this.prisma.sessionQueue.delete({ where: { id: firstInQueue.id } });
-      
-      console.log(`Promoted user ${firstInQueue.userId} from queue to pending session with default pick ${defaultPick}`);
     }
 
     // Return fresh session data to ensure real-time updates
     const updatedSession = await this.getCurrent();
-    console.log(`=== Leave complete. Updated session has ${updatedSession.session?.players?.length || 0} players ===`);
     return updatedSession;
   }
 
@@ -445,7 +357,6 @@ export class SessionsService {
 
     // Generate winning number when session ends
     const winnerNumber = ValidationUtils.generateRandomPick();
-    console.log('🎯 Winning number generated:', winnerNumber);
     
     const winners = session.players.filter(p => p.pick === winnerNumber);
 

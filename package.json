@@ -2,9 +2,10 @@
   "name": "mbl-igaming-backend",
   "version": "0.1.0",
   "private": true,
+  "main": "dist/main.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/main.ts",
-    "start": "node dist/main.js",
+    "start": "node ./dist/main.js",
     "build": "tsc -p tsconfig.build.json",
     "build:prod": "npm run build && npx prisma generate",
     "prisma:generate": "prisma generate",
@@ -12,7 +13,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "ts-node prisma/seed.ts",
-    "deploy:setup": "npx prisma migrate deploy && npx prisma generate"
+    "deploy:setup": "npx prisma migrate deploy && npx prisma generate",
+    "postbuild": "echo 'Build completed. Contents of dist folder:' && ls -la dist/ || echo 'dist folder not found'"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

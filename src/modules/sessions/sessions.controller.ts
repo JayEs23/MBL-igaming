@@ -12,14 +12,21 @@ export class SessionsController {
   constructor(private sessions: SessionsService) {}
 
   @Get('current')
-  async current(): Promise<ApiResponse<any>> {
-    const result = await this.sessions.getCurrent();
+  async current(@Req() req: UserRequest): Promise<ApiResponse<any>> {
+    const userId = req.user?.id;
+    const result = await this.sessions.getCurrent(userId);
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.CURRENT_SESSION_RETRIEVED);
   }
 
   @Get('ended/:id')
   async getEndedSession(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse<any>> {
     const result = await this.sessions.getEndedSession(id);
+    return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.SESSION_RESULTS_RETRIEVED);
+  }
+
+  @Get('results/:id')
+  async getSessionResults(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse<any>> {
+    const result = await this.sessions.getSessionResults(id);
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.SESSION_RESULTS_RETRIEVED);
   }
 

@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "main": "dist/main.js",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only -r tsconfig-paths/register src/main.ts",
     "start": "node ./dist/main.js",

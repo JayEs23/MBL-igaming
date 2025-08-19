@@ -18,6 +18,13 @@ export class SessionsController {
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.CURRENT_SESSION_RETRIEVED);
   }
 
+  @Get('joinable')
+  async isJoinable(@Req() req: UserRequest): Promise<ApiResponse<any>> {
+    const userId = req.user?.id;
+    const result = await this.sessions.isSessionJoinable(userId);
+    return ResponseUtils.success(result, 'Session joinability checked');
+  }
+
   @Get('ended/:id')
   async getEndedSession(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse<any>> {
     const result = await this.sessions.getEndedSession(id);

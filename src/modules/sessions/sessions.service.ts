@@ -391,6 +391,40 @@ export class SessionsService {
     });
   }
 
+  async isSessionJoinable(userId?: number) {
+    if (userId) {
+      await this.updateUserActivity(userId);
+    }
+    
+    const active = await this.prisma.session.findFirst({
+      where: { status: SESSION_CONSTANTS.SESSION_STATUSES.ACTIVE },
+      include: { players: true, queue: true },
+    });
+    
+    if (!active) {
+      return { joinable: false, reason: 'No active session available' };
+    }
+    
+    // Check if user is already in session
+    const inSession = active.players.some(p => p.userId === userId);
+    if (inSession) {
+      return { joinable: false, reason: 'Already in session' };
+    }
+    
+    // Check if user is in queue
+    const inQueue = active.queue.some(q => q.userId === userId);
+    if (inQueue) {
+      return { joinable: false, reason: 'Already in queue' };
+    }
+    
+    // Check if session is full
+    if (active.players.length >= this.cap) {
+      return { joinable: true, reason: 'Session full, can join queue' };
+    }
+    
+    return { joinable: true, reason: 'Can join session directly' };
+  }
+
   async getEndedSession(sessionId: number) {
     const session = await this.prisma.session.findUnique({
       where: { 

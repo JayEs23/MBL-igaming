@@ -7,7 +7,7 @@ export class SessionUtils {
       throw new BadRequestException(ERROR_MESSAGES.SESSION.NO_ACTIVE_SESSION);
     }
     if (session.status !== 'ACTIVE') {
-      throw new BadRequestException(ERROR_MESSAGES.SESSION.NO_ACTIVE_SESSION);
+      throw new BadRequestException(`Cannot join session. Session status is ${session.status}. Only ACTIVE sessions can be joined.`);
     }
   }
 

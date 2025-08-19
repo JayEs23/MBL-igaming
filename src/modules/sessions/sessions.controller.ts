@@ -11,6 +11,7 @@ import { ApiResponse } from '../../common/interfaces/api-response.interface';
 export class SessionsController {
   constructor(private sessions: SessionsService) {}
 
+  @UseGuards(JwtGuard)
   @Get('current')
   async current(@Req() req: UserRequest): Promise<ApiResponse<any>> {
     const userId = req.user?.id;
@@ -18,6 +19,7 @@ export class SessionsController {
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.CURRENT_SESSION_RETRIEVED);
   }
 
+  @UseGuards(JwtGuard)
   @Get('joinable')
   async isJoinable(@Req() req: UserRequest): Promise<ApiResponse<any>> {
     const userId = req.user?.id;
@@ -25,12 +27,14 @@ export class SessionsController {
     return ResponseUtils.success(result, 'Session joinability checked');
   }
 
+  @UseGuards(JwtGuard)
   @Get('ended/:id')
   async getEndedSession(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse<any>> {
     const result = await this.sessions.getEndedSession(id);
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.SESSION_RESULTS_RETRIEVED);
   }
 
+  @UseGuards(JwtGuard)
   @Get('results/:id')
   async getSessionResults(@Param('id', ParseIntPipe) id: number): Promise<ApiResponse<any>> {
     const result = await this.sessions.getSessionResults(id);
@@ -62,6 +66,7 @@ export class SessionsController {
     return ResponseUtils.success(result, SUCCESS_MESSAGES.SESSION.LEFT_SESSION);
   }
 
+  @UseGuards(JwtGuard)
   @Get('group-by-date')
   async grouped(): Promise<ApiResponse<any>> {
     const result = await this.sessions.getGroupedByDate();

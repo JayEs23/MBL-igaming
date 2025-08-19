@@ -30,7 +30,7 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('MBL iGaming API')
     .setDescription('Simple game lobby API (NestJS + Prisma)')
-    .setVersion('0.1.0')
+    .setVersion('1.0.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
@@ -38,6 +38,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 4000;
   await app.listen(port as number);
-  console.log(`API running on http://localhost:${port}/docs`);
+  console.log(`API running on http://localhost:${port}`);
+  console.log(`Swagger docs available at http://localhost:${port}/docs`);
 }
 bootstrap();

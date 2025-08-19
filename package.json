@@ -19,7 +19,12 @@
     "deploy:setup": "npx prisma migrate deploy && npx prisma generate",
     "db:setup": "npx prisma migrate deploy || (npx prisma migrate dev --name init --create-only && npx prisma migrate deploy)",
     "db:reset": "npx prisma migrate reset --force",
-    "postbuild": "echo 'Build completed. Contents of dist folder:' && ls -la dist/ || echo 'dist folder not found'"
+    "postbuild": "echo 'Build completed. Contents of dist folder:' && ls -la dist/ || echo 'dist folder not found'",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -44,10 +49,16 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@nestjs/testing": "^10.0.0",
     "@types/cookie-parser": "^1.4.9",
     "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.0",
     "@types/node": "^20.11.30",
+    "@types/supertest": "^2.0.0",
+    "jest": "^29.5.0",
     "prisma": "^5.18.0",
+    "supertest": "^6.3.0",
+    "ts-jest": "^29.1.0",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "tsconfig-paths": "^4.2.0",

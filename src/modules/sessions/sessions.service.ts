@@ -20,10 +20,14 @@ export class SessionsService {
   @Cron(CronExpression.EVERY_10_SECONDS)
   async handleExpiredSessions() {
     try {
+      console.log('🔄 [CRON] Running handleExpiredSessions...');
+      
       // Check if there are any active users
       const activeUsers = await this.getActiveUserCount();
+      console.log(`👥 [CRON] Active users found: ${activeUsers}`);
       
       if (activeUsers === 0) {
+        console.log('❌ [CRON] No active users, stopping all sessions');
         await this.stopAllSessions();
         return;
       }
@@ -38,7 +42,10 @@ export class SessionsService {
         include: { players: true }
       });
 
+      console.log(`⏰ [CRON] Found ${expiredSessions.length} expired sessions`);
+
       for (const session of expiredSessions) {
+        console.log(`🔚 [CRON] Ending expired session ${session.id}`);
         await this.endSession(session.id);
       }
 
@@ -49,14 +56,18 @@ export class SessionsService {
           where: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING }
         });
 
+        console.log(`📋 [CRON] Pending session exists: ${!!pendingSession}`);
+
         if (!pendingSession) {
-          await this.prisma.session.create({ 
+          console.log('➕ [CRON] Creating new pending session');
+          const newSession = await this.prisma.session.create({ 
             data: { status: SESSION_CONSTANTS.SESSION_STATUSES.PENDING } 
           });
+          console.log(`✅ [CRON] Created pending session ${newSession.id}`);
         }
       }
     } catch (error) {
-      console.error('Error handling expired sessions:', error);
+      console.error('❌ [CRON] Error handling expired sessions:', error);
     }
   }
 
@@ -96,6 +107,7 @@ export class SessionsService {
   private async getActiveUserCount(): Promise<number> {
     try {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000); // 5 minutes ago
+      console.log(`🔍 [ACTIVE_USERS] Checking for users active since: ${fiveMinutesAgo.toISOString()}`);
       
       const activeUsers = await this.prisma.user.count({
         where: {
@@ -103,9 +115,22 @@ export class SessionsService {
         }
       });
       
+      console.log(`👥 [ACTIVE_USERS] Found ${activeUsers} active users`);
+      
+      // Also log all users and their last activity for debugging
+      const allUsers = await this.prisma.user.findMany({
+        select: { id: true, username: true, lastActivityAt: true }
+      });
+      console.log('📊 [ACTIVE_USERS] All users:', allUsers.map(u => ({
+        id: u.id,
+        username: u.username,
+        lastActivity: u.lastActivityAt.toISOString(),
+        isActive: u.lastActivityAt >= fiveMinutesAgo
+      })));
+      
       return activeUsers;
     } catch (error) {
-      console.error('Error getting active user count:', error);
+      console.error('❌ [ACTIVE_USERS] Error getting active user count:', error);
       return 0;
     }
   }
@@ -113,12 +138,17 @@ export class SessionsService {
   // Update user's last activity timestamp
   private async updateUserActivity(userId: number): Promise<void> {
     try {
+      const now = new Date();
+      console.log(`🔄 [USER_ACTIVITY] Updating activity for user ${userId} at ${now.toISOString()}`);
+      
       await this.prisma.user.update({
         where: { id: userId },
-        data: { lastActivityAt: new Date() }
+        data: { lastActivityAt: now }
       });
+      
+      console.log(`✅ [USER_ACTIVITY] Updated activity for user ${userId}`);
     } catch (error) {
-      console.error(`Error updating user activity for user ${userId}:`, error);
+      console.error(`❌ [USER_ACTIVITY] Error updating user activity for user ${userId}:`, error);
     }
   }
 
@@ -148,6 +178,8 @@ export class SessionsService {
   }
 
   async getCurrent(userId?: number) {
+    console.log(`🎯 [GET_CURRENT] Called with userId: ${userId}`);
+    
     // Update user activity if userId is provided
     if (userId) {
       await this.updateUserActivity(userId);
@@ -161,7 +193,10 @@ export class SessionsService {
       include: { players: { include: { user: true } }, queue: { include: { user: true } } },
     });
     
+    console.log(`🎮 [GET_CURRENT] Active session found: ${!!active}`);
+    
     if (active) {
+      console.log(`✅ [GET_CURRENT] Returning active session ${active.id}`);
       return { session: active };
     }
 
@@ -171,23 +206,32 @@ export class SessionsService {
       orderBy: { id: 'desc' },
     });
     
+    console.log(`⏳ [GET_CURRENT] Pending session found: ${!!pending}`);
+    
     if (pending) {
       // Auto-start pending sessions after 30 seconds of creation
       const sessionAge = Date.now() - new Date(pending.createdAt).getTime();
       const autoStartDelay = 30000; // 30 seconds
       
+      console.log(`⏰ [GET_CURRENT] Session age: ${sessionAge}ms, auto-start delay: ${autoStartDelay}ms`);
+      
       if (sessionAge > autoStartDelay) {
         try {
+          console.log(`🚀 [GET_CURRENT] Auto-starting pending session ${pending.id}`);
           // Auto-start with a system user (ID 0 or null)
           const autoStartedSession = await this.start({ id: 0 });
+          console.log(`✅ [GET_CURRENT] Auto-started session ${autoStartedSession.id}`);
           return { session: autoStartedSession };
         } catch (error) {
-          console.error('Error auto-starting session:', error);
+          console.error('❌ [GET_CURRENT] Error auto-starting session:', error);
           // Continue with pending session if auto-start fails
         }
+      } else {
+        console.log(`⏳ [GET_CURRENT] Session ${pending.id} not old enough to auto-start yet`);
       }
     }
     
+    console.log(`📤 [GET_CURRENT] Returning session: ${pending ? `pending ${pending.id}` : 'null'}`);
     return { session: pending };
   }
 
